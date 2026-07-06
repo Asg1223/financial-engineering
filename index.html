@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>金融工学 解析ツール Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f0f2f5; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 10px; shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        input { width: 80px; padding: 5px; margin: 5px; }
+        canvas { max-width: 100%; height: 300px; }
+        .result { font-weight: bold; color: #0056b3; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>金融工学 シミュレーター</h1>
+
+    <!-- ポートフォリオと機会曲線 -->
+    <div class="card">
+        <h2>1. 機会曲線とリスク視覚化</h2>
+        <div class="grid">
+            <div>
+                <label>資産X (μ, σ):</label> <input type="number" id="mux" value="8">% <input type="number" id="sigx" value="15">%<br>
+                <label>資産Y (μ, σ):</label> <input type="number" id="muy" value="2">% <input type="number" id="sigy" value="5">%<br>
+                <label>相関係数 (ρ):</label> <input type="range" id="rho" min="-1" max="1" step="0.1" value="0" oninput="drawCurve()"><span id="rho_val">0</span>
+            </div>
+            <canvas id="portfolioChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 1期間二項モデル -->
+    <div class="card">
+        <h2>2. 1期間二項モデル (オプション価格)</h2>
+        <div class="grid">
+            <div>
+                <label>現在株価 S:</label> <input type="number" id="s0" value="100"><br>
+                <label>上昇時 Su:</label> <input type="number" id="su" value="120"><br>
+                <label>下落時 Sd:</label> <input type="number" id="sd" value="90"><br>
+                <label>行使価格 K:</label> <input type="number" id="kk" value="105"><br>
+                <label>無リスク金利 r:</label> <input type="number" id="rf" value="2">%
+            </div>
+            <div>
+                <button onclick="calcBinomial()">価格計算</button>
+                <div id="binom_res" class="result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chart;
+        function drawCurve() {
+            const mux = +document.getElementById('mux').value, sigx = +document.getElementById('sigx').value;
+            const muy = +document.getElementById('muy').value, sigy = +document.getElementById('sigy').value;
+            const rho = +document.getElementById('rho').value;
+            document.getElementById('rho_val').innerText = rho;
+
+            const data = [];
+            for(let a=0; a<=1.01; a+=0.05) {
+                const mu = a*mux + (1-a)*muy;
+                const sig = Math.sqrt(a**2 * sigx**2 + (1-a)**2 * sigy**2 + 2*a*(1-a)*rho*sigx*sigy);
+                data.push({x: sig, y: mu});
+            }
+
+            if(chart) chart.destroy();
+            chart = new Chart(document.getElementById('portfolioChart'), {
+                type: 'scatter',
+                data: { datasets: [{ label: '機会曲線', data: data, showLine: true, borderColor: '#2980b9' }] },
+                options: { scales: { x: { title: {display:true, text:'リスク(σ)'} }, y: { title: {display:true, text:'期待収益(μ)'} } } }
+            });
+        }
+
+        function calcBinomial() {
+            const s = +document.getElementById('s0').value, su = +document.getElementById('su').value, sd = +document.getElementById('sd').value;
+            const k = +document.getElementById('kk').value, r = +document.getElementById('rf').value / 100;
+            
+            const q = ((1 + r) * s - sd) / (su - sd); // リスク中立確率
+            const cu = Math.max(su - k, 0), cd = Math.max(sd - k, 0);
+            const callPrice = (q * cu + (1 - q) * cd) / (1 + r);
+            
+            document.getElementById('binom_res').innerHTML = `リスク中立確率 q: ${q.toFixed(4)}<br>コール価格: ${callPrice.toFixed(4)}`;
+        }
+        window.onload = drawCurve;
+    </script>
+</body>
+</html>
