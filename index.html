@@ -2,85 +2,217 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>金融工学 解析ツール Pro</title>
+    <title>金融工学 総合計算プラットフォーム</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f0f2f5; }
-        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 10px; shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        input { width: 80px; padding: 5px; margin: 5px; }
-        canvas { max-width: 100%; height: 300px; }
-        .result { font-weight: bold; color: #0056b3; margin-top: 10px; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #1a73e8; }
+        h2 { border-bottom: 2px solid #e8f0fe; padding-bottom: 10px; color: #3c4043; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .input-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.9em; color: #5f6368; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: bold; }
+        button:hover { background: #1557b0; }
+        .result-box { background: #e8f0fe; padding: 15px; border-radius: 8px; margin-top: 15px; font-family: monospace; white-space: pre-wrap; }
+        canvas { max-width: 100%; height: 350px !important; }
     </style>
 </head>
 <body>
-    <h1>金融工学 シミュレーター</h1>
 
-    <!-- ポートフォリオと機会曲線 -->
+<div class="container">
+    <h1>金融工学 総合解析ツール</h1>
+
+    <!-- 1. 利息とローン -->
     <div class="card">
-        <h2>1. 機会曲線とリスク視覚化</h2>
+        <h2>1. 金利・現在価値・ローン返済</h2>
         <div class="grid">
             <div>
-                <label>資産X (μ, σ):</label> <input type="number" id="mux" value="8">% <input type="number" id="sigx" value="15">%<br>
-                <label>資産Y (μ, σ):</label> <input type="number" id="muy" value="2">% <input type="number" id="sigy" value="5">%<br>
-                <label>相関係数 (ρ):</label> <input type="range" id="rho" min="-1" max="1" step="0.1" value="0" oninput="drawCurve()"><span id="rho_val">0</span>
+                <div class="input-group">
+                    <label>元金 / 借入額 (V0):</label>
+                    <input type="number" id="loan_v0" value="1000">
+                </div>
+                <div class="input-group">
+                    <label>年利率 (%):</label>
+                    <input type="number" id="loan_r" value="5">
+                </div>
+                <div class="input-group">
+                    <label>期間 (年):</label>
+                    <input type="number" id="loan_t" value="10">
+                </div>
+                <button onclick="calcFinanceBasic()">計算実行</button>
+            </div>
+            <div id="res_finance" class="result-box">結果がここに表示されます</div>
+        </div>
+    </div>
+
+    <!-- 2. ポートフォリオ最適化と機会曲線 -->
+    <div class="card">
+        <h2>2. ポートフォリオ理論と最適配分</h2>
+        <p style="font-size: 0.8em; color: #666;">資産XとYへの分散投資。相関係数を変えてリスク低減効果を確認できます。</p>
+        <div class="grid">
+            <div>
+                <label>資産X 期待収益(%) / 標準偏差(%):</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="number" id="mux" value="8"> <input type="number" id="sigx" value="2">
+                </div>
+                <label>資産Y 期待収益(%) / 標準偏差(%):</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="number" id="muy" value="2"> <input type="number" id="sigy" value="1">
+                </div>
+                <div class="input-group">
+                    <label>相関係数 (ρ):</label>
+                    <input type="range" id="rho" min="-1" max="1" step="0.1" value="0" oninput="updatePortfolio()">
+                    <div id="rho_disp" style="text-align:center;">0</div>
+                </div>
+                <div class="input-group">
+                    <label>目標リターン閾値 (μ min %):</label>
+                    <input type="number" id="mu_min" value="3">
+                </div>
+                <button onclick="updatePortfolio()">グラフ更新 & 最適解算出</button>
             </div>
             <canvas id="portfolioChart"></canvas>
         </div>
+        <div id="res_portfolio" class="result-box"></div>
     </div>
 
-    <!-- 1期間二項モデル -->
+    <!-- 3. オプション価格付け (Black-Scholes & Binomial) -->
     <div class="card">
-        <h2>2. 1期間二項モデル (オプション価格)</h2>
+        <h2>3. オプション理論価格 (BS公式 & 二項モデル)</h2>
         <div class="grid">
             <div>
-                <label>現在株価 S:</label> <input type="number" id="s0" value="100"><br>
-                <label>上昇時 Su:</label> <input type="number" id="su" value="120"><br>
-                <label>下落時 Sd:</label> <input type="number" id="sd" value="90"><br>
-                <label>行使価格 K:</label> <input type="number" id="kk" value="105"><br>
-                <label>無リスク金利 r:</label> <input type="number" id="rf" value="2">%
+                <div class="input-group"><label>現在株価 (S):</label><input type="number" id="opt_s" value="100"></div>
+                <div class="input-group"><label>行使価格 (K):</label><input type="number" id="opt_k" value="100"></div>
+                <div class="input-group"><label>無リスク金利 (%):</label><input type="number" id="opt_r" value="5"></div>
+                <div class="input-group"><label>ボラティリティ (σ):</label><input type="number" id="opt_sig" value="0.2"></div>
+                <div class="input-group"><label>満期 (年) [6ヶ月=0.5]:</label><input type="number" id="opt_t" value="1"></div>
+                <button onclick="calcOptionPrice()">理論価格を計算</button>
             </div>
-            <div>
-                <button onclick="calcBinomial()">価格計算</button>
-                <div id="binom_res" class="result"></div>
-            </div>
+            <div id="res_option" class="result-box">結果がここに表示されます</div>
         </div>
     </div>
 
-    <script>
-        let chart;
-        function drawCurve() {
-            const mux = +document.getElementById('mux').value, sigx = +document.getElementById('sigx').value;
-            const muy = +document.getElementById('muy').value, sigy = +document.getElementById('sigy').value;
-            const rho = +document.getElementById('rho').value;
-            document.getElementById('rho_val').innerText = rho;
+    <!-- 4. オプション戦略損益 -->
+    <div class="card">
+        <h2>4. オプション戦略のペイオフ計算</h2>
+        <div class="grid">
+            <div>
+                <label>戦略選択:</label>
+                <select id="strategy">
+                    <option value="call">単一コール購入</option>
+                    <option value="put">単一プット購入</option>
+                    <option value="protective">Protective Put (株+Put買)</option>
+                    <option value="covered">Covered Call (株-Call売)</option>
+                    <option value="straddle">Straddle (Call買+Put買)</option>
+                    <option value="spread">Bull Spread (Call買-Call売)</option>
+                    <option value="collar">Collar (株+Put買-Call売)</option>
+                </select>
+                <div class="input-group"><label>満期時株価 (St):</label><input type="number" id="st_price" value="110"></div>
+                <button onclick="calcStrategy()">戦略利益を計算</button>
+            </div>
+            <div id="res_strategy" class="result-box"></div>
+        </div>
+    </div>
+</div>
 
-            const data = [];
-            for(let a=0; a<=1.01; a+=0.05) {
-                const mu = a*mux + (1-a)*muy;
-                const sig = Math.sqrt(a**2 * sigx**2 + (1-a)**2 * sigy**2 + 2*a*(1-a)*rho*sigx*sigy);
-                data.push({x: sig, y: mu});
+<script>
+    // --- 1. 利息・ローン計算 ---
+    function calcFinanceBasic() {
+        const v0 = +document.getElementById('loan_v0').value;
+        const r = +document.getElementById('loan_r').value / 100;
+        const t = +document.getElementById('loan_t').value;
+
+        const simple = v0 * (1 + r * t);
+        const compound = v0 * Math.pow(1 + r, t);
+        const continuous = v0 * Math.exp(r * t);
+        const y = (v0 * r) / (1 - Math.pow(1 + r, -t)); // 元利均等返済
+
+        document.getElementById('res_finance').innerText = 
+            `【将来価値 VT】\n単利: ${simple.toFixed(2)}\n複利: ${compound.toFixed(2)}\n連続複利: ${continuous.toFixed(2)}\n\n` +
+            `【ローン返済 (元利均等)】\n毎年の返済額: ${y.toFixed(4)}\n総返済額: ${(y * t).toFixed(2)}`;
+    }
+
+    // --- 2. ポートフォリオ & 機会曲線 ---
+    let portChart;
+    function updatePortfolio() {
+        const mux = +document.getElementById('mux').value, sigx = +document.getElementById('sigx').value;
+        const muy = +document.getElementById('muy').value, sigy = +document.getElementById('sigy').value;
+        const rho = +document.getElementById('rho').value;
+        const mu_min = +document.getElementById('mu_min').value;
+        document.getElementById('rho_disp').innerText = rho;
+
+        const points = [];
+        let opt_a = -1, min_sig = 9999;
+
+        for(let a=0; a<=1.001; a+=0.01) {
+            const muw = a*mux + (1-a)*muy;
+            const varw = Math.pow(a*sigx, 2) + Math.pow((1-a)*sigy, 2) + 2*a*(1-a)*rho*sigx*sigy;
+            const sigw = Math.sqrt(varw);
+            points.push({x: sigw, y: muw});
+            
+            // 最適解（リスク重視型：目標リターンを満たしつつ最小リスク）
+            if(muw >= mu_min && sigw < min_sig) {
+                min_sig = sigw;
+                opt_a = a;
             }
-
-            if(chart) chart.destroy();
-            chart = new Chart(document.getElementById('portfolioChart'), {
-                type: 'scatter',
-                data: { datasets: [{ label: '機会曲線', data: data, showLine: true, borderColor: '#2980b9' }] },
-                options: { scales: { x: { title: {display:true, text:'リスク(σ)'} }, y: { title: {display:true, text:'期待収益(μ)'} } } }
-            });
         }
 
-        function calcBinomial() {
-            const s = +document.getElementById('s0').value, su = +document.getElementById('su').value, sd = +document.getElementById('sd').value;
-            const k = +document.getElementById('kk').value, r = +document.getElementById('rf').value / 100;
-            
-            const q = ((1 + r) * s - sd) / (su - sd); // リスク中立確率
-            const cu = Math.max(su - k, 0), cd = Math.max(sd - k, 0);
-            const callPrice = (q * cu + (1 - q) * cd) / (1 + r);
-            
-            document.getElementById('binom_res').innerHTML = `リスク中立確率 q: ${q.toFixed(4)}<br>コール価格: ${callPrice.toFixed(4)}`;
+        if(portChart) portChart.destroy();
+        portChart = new Chart(document.getElementById('portfolioChart'), {
+            type: 'scatter',
+            data: { datasets: [{ label: '機会曲線', data: points, showLine: true, borderColor: '#1a73e8' }] },
+            options: { scales: { x: { title: {display:true, text:'リスク(σ)'} }, y: { title: {display:true, text:'リターン(μ)'} } } }
+        });
+
+        const resText = opt_a >= 0 ? 
+            `目標リターン ${mu_min}% 以上の時：\n最適な配分率 a (資産X): ${(opt_a*100).toFixed(2)}%\nその時のリスク(σW): ${min_sig.toFixed(4)}%` :
+            "目標リターンを満たす配分がありません。";
+        document.getElementById('res_portfolio').innerText = resText;
+    }
+
+    // --- 3. オプション価格 (Black-Scholes) ---
+    function cnd(x) { // 標準正規分布の累積分布関数近似
+        const a1 = 0.31938153, a2 = -0.356563782, a3 = 1.781477937, a4 = -1.821255978, a5 = 1.330274429;
+        const L = Math.abs(x), K = 1.0 / (1.0 + 0.2316419 * L);
+        let w = 1.0 - 1.0 / Math.sqrt(2 * Math.PI) * Math.exp(-L * L / 2) * (a1 * K + a2 * K * K + a3 * Math.pow(K, 3) + a4 * Math.pow(K, 4) + a5 * Math.pow(K, 5));
+        return (x >= 0) ? w : 1.0 - w;
+    }
+
+    function calcOptionPrice() {
+        const s = +document.getElementById('opt_s').value, k = +document.getElementById('opt_k').value;
+        const r = +document.getElementById('opt_r').value / 100, sig = +document.getElementById('opt_sig').value;
+        const t = +document.getElementById('opt_t').value;
+
+        const d1 = (Math.log(s/k) + (r + 0.5 * sig**2) * t) / (sig * Math.sqrt(t));
+        const d2 = d1 - sig * Math.sqrt(t);
+        const call = s * cnd(d1) - k * Math.exp(-r * t) * cnd(d2);
+        const put = k * Math.exp(-r * t) * cnd(-d2) - s * cnd(-d1);
+
+        document.getElementById('res_option').innerText = 
+            `【Black-Scholes公式】\nコール価格: ${call.toFixed(4)}\nプット価格: ${put.toFixed(4)}\n(d1=${d1.toFixed(3)}, d2=${d2.toFixed(3)})`;
+    }
+
+    // --- 4. 戦略ペイオフ ---
+    function calcStrategy() {
+        const st = +document.getElementById('st_price').value, k = 100, prem = 10; 
+        const strat = document.getElementById('strategy').value;
+        let profit = 0;
+
+        switch(strat) {
+            case 'call': profit = Math.max(st - k, 0) - prem; break;
+            case 'put': profit = Math.max(k - st, 0) - prem; break;
+            case 'protective': profit = (st - 100) + (Math.max(k - st, 0) - prem); break;
+            case 'covered': profit = Math.min(st - 100, k - 100) + prem; break; // 簡易
+            case 'straddle': profit = (Math.max(st - k, 0) - prem) + (Math.max(k - st, 0) - prem); break;
+            case 'spread': profit = (Math.max(st - 100, 0) - 15) - (Math.max(st - 120, 0) - 5); break; // K1=100, K2=120
+            case 'collar': profit = (st - 100) + (Math.max(90 - st, 0) - 10) - (Math.max(st - 110, 0) - 9); break; // K1=90, K2=110
         }
-        window.onload = drawCurve;
-    </script>
+        document.getElementById('res_strategy').innerText = `損益結果: ${profit.toFixed(2)}`;
+    }
+
+    window.onload = () => { updatePortfolio(); calcFinanceBasic(); calcOptionPrice(); };
+</script>
 </body>
 </html>
