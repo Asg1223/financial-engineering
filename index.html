@@ -115,6 +115,40 @@
             <div id="res_strategy" class="result-box"></div>
         </div>
     </div>
+
+    <!-- 5. ブラック・ショールズ公式詳細 -->
+    <div class="card">
+        <h2>5. ブラック・ショールズ公式 (詳細計算)</h2>
+        <div class="grid">
+            <div>
+                <div class="input-group"><label>原資産価格 (S):</label><input type="number" id="bs_s" value="100"></div>
+                <div class="input-group"><label>行使価格 (K):</label><input type="number" id="bs_k" value="100"></div>
+                <div class="input-group"><label>無リスク利子率 r (%):</label><input type="number" id="bs_r" value="5" step="0.1"></div>
+                <div class="input-group"><label>ボラティリティ σ (0.2=20%):</label><input type="number" id="bs_sig" value="0.2" step="0.01"></div>
+                <div class="input-group"><label>満期までの期間 T (年):</label><input type="number" id="bs_t" value="1" step="0.1"></div>
+                <button onclick="calcBlackScholes()">理論価格を算出</button>
+            </div>
+            <div>
+                <div id="res_bs" class="result-box">数値を入力して計算ボタンを押してください</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. 二項モデル -->
+    <div class="card">
+        <h2>6. 二項モデル：価格決定と複製ポートフォリオ</h2>
+        <div class="grid">
+            <div>
+                <div class="input-group"><label>現在株価 S:</label><input type="number" id="bin_s" value="24"></div>
+                <div class="input-group"><label>上昇時価格 Su:</label><input type="number" id="bin_su" value="48"></div>
+                <div class="input-group"><label>下落時価格 Sd:</label><input type="number" id="bin_sd" value="12"></div>
+                <div class="input-group"><label>安全資産(1+r) [1.5ならr=50%]:</label><input type="number" id="bin_r" value="1.5" step="0.1"></div>
+                <div class="input-group"><label>行使価格 K:</label><input type="number" id="bin_k" value="30"></div>
+                <button onclick="calcBinomialFE10()">価格を算出</button>
+            </div>
+            <div id="res_bin" class="result-box"></div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -194,6 +228,35 @@
             `【Black-Scholes公式】\nコール価格: ${call.toFixed(4)}\nプット価格: ${put.toFixed(4)}\n(d1=${d1.toFixed(3)}, d2=${d2.toFixed(3)})`;
     }
 
+    function calcBlackScholes() {
+        const s = parseFloat(document.getElementById('bs_s').value);
+        const k = parseFloat(document.getElementById('bs_k').value);
+        const r = parseFloat(document.getElementById('bs_r').value) / 100;
+        const sig = parseFloat(document.getElementById('bs_sig').value);
+        const t = parseFloat(document.getElementById('bs_t').value);
+
+        if (!(s > 0 && k > 0 && sig > 0 && t > 0)) {
+            document.getElementById('res_bs').innerText = 'S, K, σ, T は 0 より大きい値を入力してください。';
+            return;
+        }
+
+        const sqrtT = Math.sqrt(t);
+        const d1 = (Math.log(s / k) + (r + 0.5 * Math.pow(sig, 2)) * t) / (sig * sqrtT);
+        const d2 = d1 - sig * sqrtT;
+        const call = s * cnd(d1) - k * Math.exp(-r * t) * cnd(d2);
+        const put = k * Math.exp(-r * t) * cnd(-d2) - s * cnd(-d1);
+
+        document.getElementById('res_bs').innerText =
+            `【計算プロセス】\n` +
+            `d1 = ${d1.toFixed(4)}\n` +
+            `d2 = ${d2.toFixed(4)}\n` +
+            `Φ(d1) = ${cnd(d1).toFixed(4)}\n` +
+            `Φ(d2) = ${cnd(d2).toFixed(4)}\n\n` +
+            `【オプション理論価格】\n` +
+            `コール価格 C = ${call.toFixed(4)}\n` +
+            `プット価格 P = ${put.toFixed(4)}`;
+    }
+
     // --- 4. 戦略ペイオフ ---
     function calcStrategy() {
         const st = +document.getElementById('st_price').value, k = 100, prem = 10; 
@@ -212,7 +275,38 @@
         document.getElementById('res_strategy').innerText = `損益結果: ${profit.toFixed(2)}`;
     }
 
-    window.onload = () => { updatePortfolio(); calcFinanceBasic(); calcOptionPrice(); };
+    function calcBinomialFE10() {
+        const s = +document.getElementById('bin_s').value;
+        const su = +document.getElementById('bin_su').value;
+        const sd = +document.getElementById('bin_sd').value;
+        const r_factor = +document.getElementById('bin_r').value;
+        const k = +document.getElementById('bin_k').value;
+
+        if (su === sd || r_factor === 0) {
+            document.getElementById('res_bin').innerText = '上昇時価格と下落時価格は異なる値を入力してください。';
+            return;
+        }
+
+        const cu = Math.max(su - k, 0);
+        const cd = Math.max(sd - k, 0);
+        const a = (cu - cd) / (su - sd);
+        const b = (cu - a * su) / r_factor;
+        const v0 = s * a + b;
+
+        document.getElementById('res_bin').innerText =
+            `複製ポートフォリオ:\n` +
+            `  株保有 a: ${a.toFixed(4)} 単位\n` +
+            `  債券保有 b: ${b.toFixed(4)} 単位\n` +
+            `オプション現在価格: ${v0.toFixed(4)}`;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        updatePortfolio();
+        calcFinanceBasic();
+        calcOptionPrice();
+        calcBlackScholes();
+        calcBinomialFE10();
+    });
 </script>
 </body>
 </html>
