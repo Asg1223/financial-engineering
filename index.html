@@ -18,6 +18,11 @@
         button:hover { background: #1557b0; }
         .result-box { background: #e8f0fe; padding: 15px; border-radius: 8px; margin-top: 15px; font-family: monospace; white-space: pre-wrap; }
         canvas { max-width: 100%; height: 350px !important; }
+        
+        /* テーブル用のスタイルを追加 */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
+        th, td { border: 1px solid #dadce0; padding: 8px; text-align: center; }
+        th { background-color: #f1f3f4; color: #3c4043; }
     </style>
 </head>
 <body>
@@ -25,7 +30,6 @@
 <div class="container">
     <h1>金融工学 総合解析ツール</h1>
 
-    <!-- 1. 利息とローン -->
     <div class="card">
         <h2>1. 金利・現在価値・ローン返済</h2>
         <div class="grid">
@@ -48,7 +52,6 @@
         </div>
     </div>
 
-    <!-- 2. ポートフォリオ最適化と機会曲線 -->
     <div class="card">
         <h2>2. ポートフォリオ理論と最適配分</h2>
         <p style="font-size: 0.8em; color: #666;">資産XとYへの分散投資。相関係数を変えてリスク低減効果を確認できます。</p>
@@ -78,7 +81,6 @@
         <div id="res_portfolio" class="result-box"></div>
     </div>
 
-    <!-- 3. オプション価格付け (Black-Scholes & Binomial) -->
     <div class="card">
         <h2>3. オプション理論価格 (BS公式 & 二項モデル)</h2>
         <div class="grid">
@@ -94,7 +96,6 @@
         </div>
     </div>
 
-    <!-- 4. オプション戦略損益 -->
     <div class="card">
         <h2>4. オプション戦略のペイオフ計算</h2>
         <div class="grid">
@@ -116,7 +117,6 @@
         </div>
     </div>
 
-    <!-- 5. ブラック・ショールズ公式詳細 -->
     <div class="card">
         <h2>5. ブラック・ショールズ公式 (詳細計算)</h2>
         <div class="grid">
@@ -134,7 +134,6 @@
         </div>
     </div>
 
-    <!-- 6. 二項モデル -->
     <div class="card">
         <h2>6. 二項モデル：価格決定と複製ポートフォリオ</h2>
         <div class="grid">
@@ -149,6 +148,24 @@
             <div id="res_bin" class="result-box"></div>
         </div>
     </div>
+
+    <div class="card">
+        <h2>【第9回】投資効果の比較 (株 vs オプション)</h2>
+        <p style="font-size: 0.8em; color: #666;">投資資金を「株のみ」「オプションのみ」「両方」に分けた場合の損益比較です。</p>
+        <div class="grid">
+            <div>
+                <div class="input-group"><label>投資資金総額 ($):</label><input type="number" id="comp_total" value="200"></div>
+                <div class="input-group"><label>現在の株価 S0 ($):</label><input type="number" id="comp_s0" value="100"></div>
+                <div class="input-group"><label>行使価格 K ($):</label><input type="number" id="comp_k" value="100"></div>
+                <div class="input-group"><label>プレミアム ($):</label><input type="number" id="comp_prem" value="10"></div>
+                <div class="input-group"><label>満期時の株価 P ($):</label><input type="number" id="comp_p" value="120"></div>
+                <button onclick="calcInvestmentComparison()">比較計算を実行</button>
+            </div>
+            <div id="res_comparison" class="result-box">
+                数値を入力して計算ボタンを押すと、演習3形式の比較表が表示されます。
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -161,7 +178,7 @@
         const simple = v0 * (1 + r * t);
         const compound = v0 * Math.pow(1 + r, t);
         const continuous = v0 * Math.exp(r * t);
-        const y = (v0 * r) / (1 - Math.pow(1 + r, -t)); // 元利均等返済
+        const y = (v0 * r) / (1 - Math.pow(1 + r, -t)); 
 
         document.getElementById('res_finance').innerText = 
             `【将来価値 VT】\n単利: ${simple.toFixed(2)}\n複利: ${compound.toFixed(2)}\n連続複利: ${continuous.toFixed(2)}\n\n` +
@@ -186,7 +203,6 @@
             const sigw = Math.sqrt(varw);
             points.push({x: sigw, y: muw});
             
-            // 最適解（リスク重視型：目標リターンを満たしつつ最小リスク）
             if(muw >= mu_min && sigw < min_sig) {
                 min_sig = sigw;
                 opt_a = a;
@@ -207,7 +223,7 @@
     }
 
     // --- 3. オプション価格 (Black-Scholes) ---
-    function cnd(x) { // 標準正規分布の累積分布関数近似
+    function cnd(x) { 
         const a1 = 0.31938153, a2 = -0.356563782, a3 = 1.781477937, a4 = -1.821255978, a5 = 1.330274429;
         const L = Math.abs(x), K = 1.0 / (1.0 + 0.2316419 * L);
         let w = 1.0 - 1.0 / Math.sqrt(2 * Math.PI) * Math.exp(-L * L / 2) * (a1 * K + a2 * K * K + a3 * Math.pow(K, 3) + a4 * Math.pow(K, 4) + a5 * Math.pow(K, 5));
@@ -267,14 +283,15 @@
             case 'call': profit = Math.max(st - k, 0) - prem; break;
             case 'put': profit = Math.max(k - st, 0) - prem; break;
             case 'protective': profit = (st - 100) + (Math.max(k - st, 0) - prem); break;
-            case 'covered': profit = Math.min(st - 100, k - 100) + prem; break; // 簡易
+            case 'covered': profit = Math.min(st - 100, k - 100) + prem; break; 
             case 'straddle': profit = (Math.max(st - k, 0) - prem) + (Math.max(k - st, 0) - prem); break;
-            case 'spread': profit = (Math.max(st - 100, 0) - 15) - (Math.max(st - 120, 0) - 5); break; // K1=100, K2=120
-            case 'collar': profit = (st - 100) + (Math.max(90 - st, 0) - 10) - (Math.max(st - 110, 0) - 9); break; // K1=90, K2=110
+            case 'spread': profit = (Math.max(st - 100, 0) - 15) - (Math.max(st - 120, 0) - 5); break; 
+            case 'collar': profit = (st - 100) + (Math.max(90 - st, 0) - 10) - (Math.max(st - 110, 0) - 9); break; 
         }
         document.getElementById('res_strategy').innerText = `損益結果: ${profit.toFixed(2)}`;
     }
 
+    // --- 6. 二項モデル ---
     function calcBinomialFE10() {
         const s = +document.getElementById('bin_s').value;
         const su = +document.getElementById('bin_su').value;
@@ -300,12 +317,55 @@
             `オプション現在価格: ${v0.toFixed(4)}`;
     }
 
+    // --- 9. 投資効果の比較 ---
+    function calcInvestmentComparison() {
+        const capital = +document.getElementById('comp_total').value;
+        const s0 = +document.getElementById('comp_s0').value;
+        const k = +document.getElementById('comp_k').value;
+        const prem = +document.getElementById('comp_prem').value;
+        const p_target = +document.getElementById('comp_p').value;
+
+        const prices = [50, 60, 80, 100, 120, 150, 200, p_target];
+        const scenarios = Array.from(new Set(prices)).sort((a, b) => a - b);
+
+        let html = "<table><tr><th>満期株価(P)</th><th>投資A(株) 利益/ROI</th><th>投資B(OPT) 利益/ROI</th><th>投資C(分散) 利益/ROI</th></tr>";
+
+        scenarios.forEach(p => {
+            const qtyA = capital / s0;
+            const profitA = (p - s0) * qtyA;
+            const roiA = (profitA / capital) * 100;
+
+            const qtyB = capital / prem;
+            const payoffB = Math.max(p - k, 0);
+            const profitB = (payoffB - prem) * qtyB;
+            const roiB = (profitB / capital) * 100;
+
+            const capHalf = capital / 2;
+            const profitC = ((p - s0) * (capHalf / s0)) + ((payoffB - prem) * (capHalf / prem));
+            const roiC = (profitC / capital) * 100;
+
+            const isTarget = p === p_target ? "style='background:#ffffd0; font-weight:bold;'" : "";
+            html += `<tr ${isTarget}>
+                <td>$${p}</td>
+                <td>${profitA.toFixed(0)} (${roiA.toFixed(0)}%)</td>
+                <td>${profitB.toFixed(0)} (${roiB.toFixed(0)}%)</td>
+                <td>${profitC.toFixed(0)} (${roiC.toFixed(0)}%)</td>
+            </tr>`;
+        });
+        html += "</table>";
+        html += `<p style='font-size:0.8em; color:#d93025; margin-top: 10px;'>※黄色い行が入力された満期価格の結果です。</p>`;
+        
+        document.getElementById('res_comparison').innerHTML = html;
+    }
+
+    // 初期化
     window.addEventListener('DOMContentLoaded', () => {
         updatePortfolio();
         calcFinanceBasic();
         calcOptionPrice();
         calcBlackScholes();
         calcBinomialFE10();
+        calcInvestmentComparison(); // 初期読み込みに追加
     });
 </script>
 </body>
